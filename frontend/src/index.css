@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Prevent page bounce on overscroll */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
