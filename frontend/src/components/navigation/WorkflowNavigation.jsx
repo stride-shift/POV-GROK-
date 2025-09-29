@@ -14,7 +14,11 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Home
+  Home,
+  Megaphone,
+  Mail,
+  MessageCircle,
+  BookOpen
 } from 'lucide-react';
 import { WORKFLOW_STEPS } from '../../services/constants';
 
@@ -276,6 +280,78 @@ const WorkflowNavigation = ({ currentSection = null }) => {
           );
         })}
       </div>
+
+      {/* Artifacts Section */}
+      {reportData.reportId && (
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-900 mb-4">Create Artifacts</h4>
+          <div className="space-y-2">
+            <button
+              onClick={() => navigate(`/campaigns/${reportData.reportId}/whitepaper`)}
+              className="w-full text-left p-3 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center min-w-0 flex-1">
+                  <BookOpen className="w-4 h-4 mr-3 flex-shrink-0 text-blue-600" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">Whitepaper</div>
+                    <p className="text-xs text-gray-500">Long-form content</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate(`/campaigns/${reportData.reportId}/marketing`)}
+              className="w-full text-left p-3 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center min-w-0 flex-1">
+                  <Megaphone className="w-4 h-4 mr-3 flex-shrink-0 text-purple-600" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">Marketing Assets</div>
+                    <p className="text-xs text-gray-500">One-pagers, blogs, social</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate(`/campaigns/${reportData.reportId}/cold-call-emails`)}
+              className="w-full text-left p-3 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center min-w-0 flex-1">
+                  <Mail className="w-4 h-4 mr-3 flex-shrink-0 text-green-600" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">Cold Emails</div>
+                    <p className="text-xs text-gray-500">Outreach templates</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate(`/campaigns/${reportData.reportId}/sales-scripts`)}
+              className="w-full text-left p-3 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center min-w-0 flex-1">
+                  <MessageCircle className="w-4 h-4 mr-3 flex-shrink-0 text-orange-600" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">Sales Scripts</div>
+                    <p className="text-xs text-gray-500">Conversation guides</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Current Report Info */}
       {reportData.reportId && (

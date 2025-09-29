@@ -1,0 +1,11 @@
+Bug ID,Date Found,Tester Name,Feature Area,Bug Description,Steps to Reproduce,Expected Result,Actual Result,Severity,Status,Browser/Environment,Screenshots/Notes,Related Test Case
+BUG001,,,Authentication,Login button not responding,1. Navigate to /login 2. Enter credentials 3. Click Sign In,User should be logged in,Button does not respond to clicks,High,Open,Chrome/Windows,,TC001
+BUG002,,,POV Workflow,Workflow navigation shows wrong step,1. Complete POV generation 2. Check workflow sidebar,Select Outcomes should show completed,Shows as incomplete,Medium,Open,,,TC018
+BUG003,,,Campaign Space,Cold email modal instead of page,1. Click Actions 2. Click Cold Call Email,Should navigate to campaigns page,Opens modal instead,Medium,Open,,,TC008
+BUG004,,,Artifacts,Previous items not loading,1. Generate artifact 2. Check sidebar,Previous items should display,Sidebar shows empty,High,Open,,,TC012
+BUG005,,,Export,DOCX download fails,1. Click Export DOCX,File should download,Error message or no download,High,Open,,,TC016
+BUG006,,,Navigation,Breadcrumb links broken,1. Navigate through workflow 2. Click breadcrumb,Should navigate to correct step,Navigation fails or wrong page,Medium,Open,,,TC017
+BUG007,,,Forms,Required field validation missing,1. Submit form with empty required fields,Should show validation errors,Form submits anyway,Medium,Open,,,TC003
+BUG008,,,Responsive,Mobile menu not working,1. Resize to mobile 2. Click menu button,Menu should open/close,Menu does not respond,Low,Open,Mobile,,TC023
+BUG009,,,Performance,Slow artifact generation,1. Generate whitepaper/marketing,Should complete within 30 seconds,Takes over 2 minutes,Medium,Open,,,TC024
+BUG010,,,Security,Cross-user data visible,1. Login as different users 2. Check data,Should only see own data,Can see other users' data,Critical,Open,,,TC025

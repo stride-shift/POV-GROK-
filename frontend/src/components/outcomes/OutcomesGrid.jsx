@@ -14,7 +14,7 @@ const OutcomesGrid = ({
 }) => {
   const [outcomesData, setOutcomesData] = useState(null);
   const [expandedCards, setExpandedCards] = useState({});
-  const [showSummary, setShowSummary] = useState(false);
+  const [showSummary, setShowSummary] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOutcome, setSelectedOutcome] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -162,21 +162,11 @@ const OutcomesGrid = ({
           >
             Collapse All
           </Button>
-          {summary && (
-            <Button
-              variant={showSummary ? "primary" : "outline"}
-              size="sm"
-              onClick={() => setShowSummary(!showSummary)}
-              icon={FileText}
-            >
-              {showSummary ? 'Hide' : 'Show'} Summary
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Summary Section */}
-      {summary && showSummary && (
+      {/* Summary Section - Always visible when available */}
+      {summary && (
         <div className="bg-white rounded-xl shadow-lg p-8 mb-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">
             Summary & Key Takeaways
@@ -273,43 +263,18 @@ const OutcomesGrid = ({
         </div>
       )}
 
-      {/* Outcomes Grid - Using flexbox columns for better height handling */}
-      <div className="flex flex-col lg:flex-row lg:space-x-6 space-y-6 lg:space-y-0">
-        {/* Left Column */}
-        <div className="flex-1 space-y-6">
-          {outcomes.filter((_, index) => index % 2 === 0).map((outcome, originalIndex) => {
-            const actualIndex = originalIndex * 2;
-            return (
-              <OutcomeCard
-                key={outcome.outcome_index || actualIndex}
-                outcome={outcome}
-                index={actualIndex}
-                isExpanded={expandedCards[actualIndex] || false}
-                onToggleExpand={handleToggleExpand}
-                onCardClick={handleCardClick}
-              />
-            );
-          })}
-        </div>
-        
-        {/* Right Column - Only show on large screens if there are multiple outcomes */}
-        {outcomes.length > 1 && (
-          <div className="flex-1 space-y-6">
-            {outcomes.filter((_, index) => index % 2 === 1).map((outcome, originalIndex) => {
-              const actualIndex = originalIndex * 2 + 1;
-              return (
-                <OutcomeCard
-                  key={outcome.outcome_index || actualIndex}
-                  outcome={outcome}
-                  index={actualIndex}
-                  isExpanded={expandedCards[actualIndex] || false}
-                  onToggleExpand={handleToggleExpand}
-                  onCardClick={handleCardClick}
-                />
-              );
-            })}
-          </div>
-        )}
+      {/* Outcomes Grid - 3 columns responsive layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {outcomes.map((outcome, index) => (
+          <OutcomeCard
+            key={outcome.outcome_index || index}
+            outcome={outcome}
+            index={index}
+            isExpanded={expandedCards[index] || false}
+            onToggleExpand={handleToggleExpand}
+            onCardClick={handleCardClick}
+          />
+        ))}
       </div>
 
       {/* Outcome Modal */}

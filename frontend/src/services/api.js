@@ -235,6 +235,32 @@ export const apiService = {
     });
     return response.data;
   },
+  chatEditColdCallEmail: async (emailId, requestData) => {
+    const response = await apiClient.post(`/chat-edit-cold-call-email/${emailId}`, requestData, {
+      headers: {
+        'X-API-Key': API_CONFIG.API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  },
+  getColdCallEmailVersions: async (emailId, userId) => {
+    const response = await apiClient.get(`/cold-call-emails/${emailId}/versions?user_id=${userId}`, {
+      headers: { 'X-API-Key': API_CONFIG.API_KEY }
+    });
+    return response.data;
+  },
+  restoreColdCallEmailVersion: async (emailId, versionNumber, userId) => {
+    const response = await apiClient.post(`/cold-call-emails/${emailId}/restore/${versionNumber}`, {
+      user_id: userId
+    }, {
+      headers: {
+        'X-API-Key': API_CONFIG.API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  },
 
   // Whitepaper
   generateWhitepaper: async (reportId, requestData) => {
@@ -249,6 +275,32 @@ export const apiService = {
   getWhitepapers: async (reportId, userId) => {
     const response = await apiClient.get(`/whitepapers/${reportId}?user_id=${userId}`, {
       headers: { 'X-API-Key': API_CONFIG.API_KEY }
+    });
+    return response.data;
+  },
+  chatEditWhitepaper: async (whitepaperId, requestData) => {
+    const response = await apiClient.post(`/chat-edit-whitepaper/${whitepaperId}`, requestData, {
+      headers: {
+        'X-API-Key': API_CONFIG.API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  },
+  getWhitepaperVersions: async (whitepaperId, userId) => {
+    const response = await apiClient.get(`/whitepapers/${whitepaperId}/versions?user_id=${userId}`, {
+      headers: { 'X-API-Key': API_CONFIG.API_KEY }
+    });
+    return response.data;
+  },
+  restoreWhitepaperVersion: async (whitepaperId, versionNumber, userId) => {
+    const response = await apiClient.post(`/whitepapers/${whitepaperId}/restore/${versionNumber}`, {
+      user_id: userId
+    }, {
+      headers: {
+        'X-API-Key': API_CONFIG.API_KEY,
+        'Content-Type': 'application/json'
+      }
     });
     return response.data;
   },
@@ -269,6 +321,32 @@ export const apiService = {
     });
     return response.data;
   },
+  chatEditMarketingAsset: async (assetId, requestData) => {
+    const response = await apiClient.post(`/chat-edit-marketing-asset/${assetId}`, requestData, {
+      headers: {
+        'X-API-Key': API_CONFIG.API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  },
+  getMarketingAssetVersions: async (assetId, userId) => {
+    const response = await apiClient.get(`/marketing-assets/${assetId}/versions?user_id=${userId}`, {
+      headers: { 'X-API-Key': API_CONFIG.API_KEY }
+    });
+    return response.data;
+  },
+  restoreMarketingAssetVersion: async (assetId, versionNumber, userId) => {
+    const response = await apiClient.post(`/marketing-assets/${assetId}/restore/${versionNumber}`, {
+      user_id: userId
+    }, {
+      headers: {
+        'X-API-Key': API_CONFIG.API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  },
 
   // Sales scripts
   generateSalesScript: async (reportId, requestData) => {
@@ -282,6 +360,40 @@ export const apiService = {
   },
   getSalesScripts: async (reportId, userId) => {
     const response = await apiClient.get(`/sales-scripts/${reportId}?user_id=${userId}`, {
+      headers: { 'X-API-Key': API_CONFIG.API_KEY }
+    });
+    return response.data;
+  },
+  chatEditSalesScript: async (scriptId, requestData) => {
+    const response = await apiClient.post(`/chat-edit-sales-script/${scriptId}`, requestData, {
+      headers: {
+        'X-API-Key': API_CONFIG.API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  },
+  getSalesScriptVersions: async (scriptId, userId) => {
+    const response = await apiClient.get(`/sales-scripts/${scriptId}/versions?user_id=${userId}`, {
+      headers: { 'X-API-Key': API_CONFIG.API_KEY }
+    });
+    return response.data;
+  },
+  restoreSalesScriptVersion: async (scriptId, versionNumber, userId) => {
+    const response = await apiClient.post(`/sales-scripts/${scriptId}/restore/${versionNumber}`, {
+      user_id: userId
+    }, {
+      headers: {
+        'X-API-Key': API_CONFIG.API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  },
+
+  // Financial data
+  getCompanyFinancialData: async (companyName) => {
+    const response = await apiClient.get(`/company/${encodeURIComponent(companyName)}/financial-data`, {
       headers: { 'X-API-Key': API_CONFIG.API_KEY }
     });
     return response.data;

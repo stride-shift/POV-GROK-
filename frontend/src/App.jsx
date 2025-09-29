@@ -11,10 +11,11 @@ import ViewOutcomes from './pages/ViewOutcomes';
 import AllReports from './pages/AllReports';
 import Extras from './pages/Extras';
 import CampaignSpace from './pages/CampaignSpace';
-import ColdCallEmails from './pages/ColdCallEmails';
+import EmailCanvas from './components/emails/EmailCanvas';
 import Whitepaper from './pages/Whitepaper';
-import Marketing from './pages/Marketing';
-import SalesScripts from './pages/SalesScripts';
+import WhitepaperCanvas from './components/whitepaper/WhitepaperCanvas';
+import MarketingCanvas from './components/marketing/MarketingCanvas';
+import SalesScriptsCanvas from './components/scripts/SalesScriptsCanvas';
 import UserManagement from './pages/UserManagement';
 import BulkUpload from './pages/BulkUpload';
 import Login from './pages/Login';
@@ -135,33 +136,33 @@ function App() {
             } />
             <Route path="/actions/cold-call-emails" element={
               <ProtectedRoute>
-                <ColdCallEmails />
+                <EmailCanvas />
               </ProtectedRoute>
             } />
             <Route path="/actions/:reportId/cold-call-emails" element={
               <ProtectedRoute>
-                <ColdCallEmails />
+                <EmailCanvas />
               </ProtectedRoute>
             } />
             {/* Campaign-scoped artifact routes */}
             <Route path="/campaigns/:reportId/cold-call-emails" element={
               <ProtectedRoute>
-                <ColdCallEmails />
+                <EmailCanvas />
               </ProtectedRoute>
             } />
             <Route path="/campaigns/:reportId/whitepaper" element={
               <ProtectedRoute>
-                <Whitepaper />
+                <WhitepaperCanvas />
               </ProtectedRoute>
             } />
             <Route path="/campaigns/:reportId/marketing" element={
               <ProtectedRoute>
-                <Marketing />
+                <MarketingCanvas />
               </ProtectedRoute>
             } />
             <Route path="/campaigns/:reportId/sales-scripts" element={
               <ProtectedRoute>
-                <SalesScripts />
+                <SalesScriptsCanvas />
               </ProtectedRoute>
             } />
             <Route path="/actions/:reportId/whitepaper" element={
@@ -171,12 +172,12 @@ function App() {
             } />
             <Route path="/actions/:reportId/marketing" element={
               <ProtectedRoute>
-                <Marketing />
+                <MarketingCanvas />
               </ProtectedRoute>
             } />
             <Route path="/actions/:reportId/sales-scripts" element={
               <ProtectedRoute>
-                <SalesScripts />
+                <SalesScriptsCanvas />
               </ProtectedRoute>
             } />
             <Route path="/users" element={

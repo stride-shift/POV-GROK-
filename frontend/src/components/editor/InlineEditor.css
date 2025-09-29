@@ -1,0 +1,174 @@
+/* Inline Editor Styles */
+.inline-editor {
+  position: relative;
+  width: 100%;
+}
+
+.inline-editor-content {
+  outline: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  min-height: 1.5em;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Focus styles */
+.inline-editor-content.has-focus {
+  background-color: rgba(59, 130, 246, 0.05);
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  transition: all 0.2s ease;
+}
+
+/* Placeholder styles */
+.inline-editor-content .ProseMirror-placeholder {
+  color: #9ca3af;
+  pointer-events: none;
+  user-select: none;
+  font-style: italic;
+}
+
+.inline-editor-content .ProseMirror-placeholder::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Hover effect when editable */
+.inline-editor:hover .inline-editor-content:not(.has-focus) {
+  background-color: rgba(59, 130, 246, 0.02);
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  cursor: text;
+  transition: all 0.2s ease;
+}
+
+/* Content styling */
+.inline-editor-content p {
+  margin: 0;
+  padding: 0;
+}
+
+.inline-editor-content p:not(:last-child) {
+  margin-bottom: 1em;
+}
+
+.inline-editor-content h1,
+.inline-editor-content h2,
+.inline-editor-content h3,
+.inline-editor-content h4,
+.inline-editor-content h5,
+.inline-editor-content h6 {
+  font-weight: bold;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.inline-editor-content h1:first-child,
+.inline-editor-content h2:first-child,
+.inline-editor-content h3:first-child,
+.inline-editor-content h4:first-child,
+.inline-editor-content h5:first-child,
+.inline-editor-content h6:first-child {
+  margin-top: 0;
+}
+
+.inline-editor-content h1 {
+  font-size: 2em;
+}
+
+.inline-editor-content h2 {
+  font-size: 1.5em;
+}
+
+.inline-editor-content h3 {
+  font-size: 1.25em;
+}
+
+.inline-editor-content strong {
+  font-weight: bold;
+}
+
+.inline-editor-content em {
+  font-style: italic;
+}
+
+.inline-editor-content ul,
+.inline-editor-content ol {
+  padding-left: 1.5em;
+  margin: 1em 0;
+}
+
+.inline-editor-content li {
+  margin: 0.25em 0;
+}
+
+.inline-editor-content blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1em;
+  margin: 1em 0;
+  font-style: italic;
+  color: #6b7280;
+}
+
+.inline-editor-content code {
+  background-color: #f3f4f6;
+  color: #374151;
+  padding: 0.125em 0.25em;
+  border-radius: 0.25em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.875em;
+}
+
+.inline-editor-content pre {
+  background-color: #f3f4f6;
+  color: #374151;
+  padding: 1em;
+  border-radius: 0.5em;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.inline-editor-content pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Selection styles */
+.inline-editor-content ::selection {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Disabled state */
+.inline-editor-content[contenteditable="false"] {
+  cursor: default;
+}
+
+.inline-editor-content[contenteditable="false"]:hover {
+  background-color: transparent;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .inline-editor-content.has-focus {
+    padding: 8px;
+    margin: -8px;
+  }
+  
+  .inline-editor:hover .inline-editor-content:not(.has-focus) {
+    padding: 8px;
+    margin: -8px;
+  }
+}

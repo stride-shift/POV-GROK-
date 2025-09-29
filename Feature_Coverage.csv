@@ -1,0 +1,16 @@
+Feature Name,Sub-features,Test Coverage %,Critical Path Tested,Edge Cases Tested,Notes
+Authentication,Login/Logout/Session Management,80%,Yes,No,Basic auth flow covered
+POV Workflow,Form Input → Title Selection → Outcome Generation,90%,Yes,Partial,Main flow tested; edge cases need work
+Campaign Space,Navigation and Artifact Access,85%,Yes,No,Core functionality covered
+Cold Call Emails,Generation/Preview/Previous Items,75%,Yes,No,Modal vs page navigation issue
+Whitepapers,Generation/Preview/Previous Items,70%,Partial,No,Need to test with different titles
+Marketing Assets,Generation/Preview/Asset Types,60%,Partial,No,Test all asset types
+Sales Scripts,Generation/Preview/Scenarios,65%,Partial,No,Test all scenario types
+Export Functionality,DOCX Generation and Download,50%,No,No,Basic export needs testing
+User Management,Create/Edit/Delete Users,40%,No,No,Admin features need testing
+Grok Research,Toggle/Integration/Enhancement,30%,No,No,Requires API key setup
+Navigation,Workflow/Main Nav/Breadcrumbs,70%,Yes,No,Some navigation state issues
+Responsive Design,Mobile/Tablet/Desktop,20%,No,No,Minimal responsive testing
+Error Handling,Network/Validation/API Errors,30%,No,No,Need comprehensive error testing
+Performance,Large Reports/Concurrent Users,10%,No,No,Performance testing needed
+Security,Data Isolation/RLS/Authorization,60%,Partial,No,Basic security testing done

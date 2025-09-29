@@ -5,8 +5,8 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import OutcomesGrid from '../components/outcomes/OutcomesGrid';
 import Button from '../components/ui/Button';
-import ProgressBar from '../components/ui/ProgressBar';
 import ReportHeader from '../components/ui/ReportHeader';
+import StockBanner from '../components/ui/StockBanner';
 
 import WorkflowNavigation from '../components/navigation/WorkflowNavigation';
 import MobileWorkflowNav from '../components/navigation/MobileWorkflowNav';
@@ -166,17 +166,16 @@ const ViewOutcomes = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Progress Bar */}
-      <ProgressBar 
-        currentStep={WORKFLOW_STEPS.OUTCOMES} 
-        completedSteps={[WORKFLOW_STEPS.FORM, WORKFLOW_STEPS.TITLES, WORKFLOW_STEPS.OUTCOMES]} 
-      />
-
       {/* Mobile Navigation */}
       <MobileWorkflowNav currentSection="Outcomes" />
 
+      {/* Stock Information Banner */}
+      <StockBanner 
+        companyName={reportData.formData?.target_customer_name} 
+      />
+
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-6">
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 items-start">
           {/* Sidebar with Navigation */}
           <div className="hidden lg:block lg:col-span-2">

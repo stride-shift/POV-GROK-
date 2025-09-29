@@ -2894,6 +2894,212 @@ async def get_cold_call_emails(
             detail=str(e)
         )
 
+@app.post("/chat-edit-cold-call-email/{email_id}")
+async def chat_edit_cold_call_email(
+    email_id: str,
+    request: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Chat-based cold call email editing endpoint with version history
+    """
+    try:
+        user_id = request.get("user_id")
+        edit_request = request.get("message", "")
+        current_content = request.get("current_content", "")
+        current_subject = request.get("current_subject", "")
+        
+        if not edit_request.strip():
+            raise HTTPException(status_code=400, detail="Edit request is required")
+        
+        # Get original email data including version history
+        email_result = supabase.table("cold_call_emails").select("*").eq("id", email_id).eq("user_id", user_id).single().execute()
+        if not email_result.data:
+            raise HTTPException(status_code=404, detail="Cold call email not found")
+        
+        email_data = email_result.data
+        report_data = await get_pov_report_data(email_data["report_id"], user_id)
+        
+        # Get current version history and version number
+        version_history = email_data.get("version_history", [])
+        current_version_num = email_data.get("current_version", 1)
+        
+        # Save current version to history before updating
+        # For the first edit, save the original as version 1
+        if current_version_num == 1 and len(version_history) == 0:
+            original_entry = {
+                "version": 1,
+                "content": email_data["email_body"],
+                "subject": email_data["subject"],
+                "edited_at": email_data.get("created_at", datetime.now().isoformat()),
+                "edit_message": "Original version",
+                "edited_by": user_id
+            }
+            version_history.append(original_entry)
+        
+        # Build chat editing prompt
+        prompt = f"""
+        You are an expert editor helping to improve a cold call email. The user wants you to: {edit_request}
+
+        Current email subject:
+        {current_subject}
+        
+        Current email content:
+        {current_content}
+        
+        Original POV context for reference:
+        - Vendor: {report_data['report']['vendor_name']}
+        - Customer: {report_data['report']['target_customer_name']}
+        - POV Outcomes: {', '.join(report_data.get('titles', [])[:5])}
+        
+        Instructions:
+        - Make the requested changes while maintaining professional email tone
+        - Keep the email concise and focused
+        - Ensure changes are relevant to the POV context
+        - Return the complete updated email content
+        - If the subject line needs updating based on the request, provide it as well
+        
+        Return in this format:
+        SUBJECT: [updated subject if changed, or original subject]
+        
+        BODY:
+        [updated email body]
+        """
+        
+        from llm import call_gpt
+        updated_response, _ = call_gpt(
+            prompt=prompt,
+            system_prompt="You are a professional email editor. Make precise, impactful improvements based on user requests.",
+        )
+        
+        # Parse the response to extract subject and body
+        lines = updated_response.strip().split('\n')
+        updated_subject = current_subject
+        updated_content = updated_response
+        
+        for i, line in enumerate(lines):
+            if line.startswith("SUBJECT:"):
+                updated_subject = line.replace("SUBJECT:", "").strip()
+                # Find where BODY starts
+                for j in range(i+1, len(lines)):
+                    if lines[j].startswith("BODY:"):
+                        updated_content = '\n'.join(lines[j+1:]).strip()
+                        break
+                break
+        
+        # Keep only last 20 versions to prevent excessive storage
+        if len(version_history) > 20:
+            version_history = version_history[-20:]
+        
+        # Update the email with new content and version history
+        supabase.table("cold_call_emails").update({
+            "email_body": updated_content,
+            "subject": updated_subject,
+            "version_history": version_history,
+            "current_version": current_version_num + 1,
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", email_id).eq("user_id", user_id).execute()
+        
+        return {
+            "message": "Cold call email updated successfully",
+            "updated_content": updated_content,
+            "updated_subject": updated_subject,
+            "edit_request": edit_request,
+            "version": current_version_num + 1,
+            "version_history": version_history
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/cold-call-emails/{email_id}/versions")
+async def get_cold_call_email_versions(
+    email_id: str,
+    user_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get version history for a cold call email
+    """
+    try:
+        result = supabase.table("cold_call_emails").select("version_history, current_version, subject").eq("id", email_id).eq("user_id", user_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Cold call email not found")
+        
+        return {
+            "current_version": result.data.get("current_version", 1),
+            "current_subject": result.data.get("subject", ""),
+            "versions": result.data.get("version_history", [])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/cold-call-emails/{email_id}/restore/{version_number}")
+async def restore_cold_call_email_version(
+    email_id: str,
+    version_number: int,
+    request: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Restore a previous version of a cold call email
+    """
+    try:
+        user_id = request.get("user_id")
+        
+        # Get email with version history
+        result = supabase.table("cold_call_emails").select("*").eq("id", email_id).eq("user_id", user_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Cold call email not found")
+        
+        email_data = result.data
+        version_history = email_data.get("version_history", [])
+        current_version_num = email_data.get("current_version", 1)
+        
+        # Find the version to restore
+        version_to_restore = None
+        for version in version_history:
+            if version.get("version") == version_number:
+                version_to_restore = version
+                break
+        
+        if not version_to_restore:
+            raise HTTPException(status_code=404, detail=f"Version {version_number} not found")
+        
+        # Save current version to history before restoring
+        current_entry = {
+            "version": current_version_num,
+            "content": email_data["email_body"],
+            "subject": email_data["subject"],
+            "edited_at": email_data.get("updated_at", email_data.get("created_at")),
+            "edit_message": f"Before restoring to version {version_number}",
+            "edited_by": user_id
+        }
+        version_history.append(current_entry)
+        
+        # Keep only last 20 versions
+        if len(version_history) > 20:
+            version_history = version_history[-20:]
+        
+        # Restore the selected version
+        supabase.table("cold_call_emails").update({
+            "email_body": version_to_restore["content"],
+            "subject": version_to_restore.get("subject", email_data["subject"]),
+            "version_history": version_history,
+            "current_version": current_version_num + 1,
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", email_id).eq("user_id", user_id).execute()
+        
+        return {
+            "message": f"Successfully restored version {version_number}",
+            "restored_content": version_to_restore["content"],
+            "restored_subject": version_to_restore.get("subject", email_data["subject"]),
+            "new_version": current_version_num + 1
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ===============================
 # WHITEPAPER
 # ===============================
@@ -3014,6 +3220,186 @@ async def get_whitepapers(report_id: str, user_id: str, api_key: str = Depends(v
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/chat-edit-whitepaper/{whitepaper_id}")
+async def chat_edit_whitepaper(
+    whitepaper_id: str,
+    request: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Chat-based whitepaper editing endpoint with version history
+    """
+    try:
+        user_id = request.get("user_id")
+        edit_request = request.get("message", "")
+        current_content = request.get("current_content", "")
+        
+        if not edit_request.strip():
+            raise HTTPException(status_code=400, detail="Edit request is required")
+        
+        # Get original whitepaper data including version history
+        whitepaper_result = supabase.table("whitepapers").select("*").eq("id", whitepaper_id).eq("user_id", user_id).single().execute()
+        if not whitepaper_result.data:
+            raise HTTPException(status_code=404, detail="Whitepaper not found")
+        
+        whitepaper = whitepaper_result.data
+        report_data = await get_pov_report_data(whitepaper["report_id"], user_id)
+        
+        # Get current version history and version number
+        version_history = whitepaper.get("version_history", [])
+        current_version_num = whitepaper.get("current_version", 1)
+        
+        # Save current version to history before updating
+        # For the first edit, save the original as version 1
+        if current_version_num == 1 and len(version_history) == 0:
+            original_entry = {
+                "version": 1,
+                "content": whitepaper["content"],
+                "title": whitepaper["title"],
+                "edited_at": whitepaper.get("created_at", datetime.now().isoformat()),
+                "edit_message": "Original version",
+                "edited_by": user_id
+            }
+            version_history.append(original_entry)
+        
+        # Build chat editing prompt
+        prompt = f"""
+        You are an expert editor helping to improve a whitepaper. The user wants you to: {edit_request}
+
+        Current whitepaper content:
+        {current_content}
+
+        Original POV context for reference:
+        - Vendor: {report_data['report']['vendor_name']}
+        - Customer: {report_data['report']['target_customer_name']}
+        - POV Outcomes: {', '.join(report_data.get('titles', [])[:5])}
+        
+        Instructions:
+        - Make the requested changes while maintaining the whitepaper's professional tone
+        - Keep the overall structure and flow intact unless specifically asked to change it
+        - Ensure changes are relevant to the POV context
+        - Return the complete updated whitepaper content
+        - Preserve markdown formatting
+        
+        Updated whitepaper:
+        """
+        
+        from llm import call_gpt
+        updated_content, _ = call_gpt(
+            prompt=prompt,
+            system_prompt="You are a professional whitepaper editor. Make precise, thoughtful improvements based on user requests.",
+        )
+        
+        # Keep only last 20 versions to prevent excessive storage
+        if len(version_history) > 20:
+            version_history = version_history[-20:]
+        
+        # Update the whitepaper with new content and version history
+        supabase.table("whitepapers").update({
+            "content": updated_content,
+            "version_history": version_history,
+            "current_version": current_version_num + 1,
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", whitepaper_id).eq("user_id", user_id).execute()
+        
+        return {
+            "message": "Whitepaper updated successfully",
+            "updated_content": updated_content,
+            "edit_request": edit_request,
+            "version": current_version_num + 1,
+            "version_history": version_history
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/whitepapers/{whitepaper_id}/versions")
+async def get_whitepaper_versions(
+    whitepaper_id: str,
+    user_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get version history for a whitepaper
+    """
+    try:
+        result = supabase.table("whitepapers").select("version_history, current_version, title").eq("id", whitepaper_id).eq("user_id", user_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Whitepaper not found")
+        
+        return {
+            "current_version": result.data.get("current_version", 1),
+            "current_title": result.data.get("title", ""),
+            "versions": result.data.get("version_history", [])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/whitepapers/{whitepaper_id}/restore/{version_number}")
+async def restore_whitepaper_version(
+    whitepaper_id: str,
+    version_number: int,
+    request: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Restore a previous version of a whitepaper
+    """
+    try:
+        user_id = request.get("user_id")
+        
+        # Get whitepaper with version history
+        result = supabase.table("whitepapers").select("*").eq("id", whitepaper_id).eq("user_id", user_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Whitepaper not found")
+        
+        whitepaper = result.data
+        version_history = whitepaper.get("version_history", [])
+        current_version_num = whitepaper.get("current_version", 1)
+        
+        # Find the version to restore
+        version_to_restore = None
+        for version in version_history:
+            if version.get("version") == version_number:
+                version_to_restore = version
+                break
+        
+        if not version_to_restore:
+            raise HTTPException(status_code=404, detail=f"Version {version_number} not found")
+        
+        # Save current version to history before restoring
+        current_entry = {
+            "version": current_version_num,
+            "content": whitepaper["content"],
+            "title": whitepaper["title"],
+            "edited_at": whitepaper.get("updated_at", whitepaper.get("created_at")),
+            "edit_message": f"Before restoring to version {version_number}",
+            "edited_by": user_id
+        }
+        version_history.append(current_entry)
+        
+        # Keep only last 20 versions
+        if len(version_history) > 20:
+            version_history = version_history[-20:]
+        
+        # Restore the selected version
+        supabase.table("whitepapers").update({
+            "content": version_to_restore["content"],
+            "title": version_to_restore.get("title", whitepaper["title"]),
+            "version_history": version_history,
+            "current_version": current_version_num + 1,
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", whitepaper_id).eq("user_id", user_id).execute()
+        
+        return {
+            "message": f"Successfully restored version {version_number}",
+            "restored_content": version_to_restore["content"],
+            "new_version": current_version_num + 1
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ===============================
 # MARKETING ASSETS
 # ===============================
@@ -3081,6 +3467,188 @@ async def get_marketing_assets(report_id: str, user_id: str, api_key: str = Depe
     try:
         res = supabase.table("marketing_assets").select("*").eq("report_id", report_id).eq("user_id", user_id).order("created_at", desc=True).execute()
         return {"items": res.data or []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat-edit-marketing-asset/{asset_id}")
+async def chat_edit_marketing_asset(
+    asset_id: str,
+    request: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Chat-based marketing asset editing endpoint with version history
+    """
+    try:
+        user_id = request.get("user_id")
+        edit_request = request.get("message", "")
+        current_content = request.get("current_content", "")
+        
+        if not edit_request.strip():
+            raise HTTPException(status_code=400, detail="Edit request is required")
+        
+        # Get original asset data including version history
+        asset_result = supabase.table("marketing_assets").select("*").eq("id", asset_id).eq("user_id", user_id).single().execute()
+        if not asset_result.data:
+            raise HTTPException(status_code=404, detail="Marketing asset not found")
+        
+        asset = asset_result.data
+        report_data = await get_pov_report_data(asset["report_id"], user_id)
+        
+        # Get current version history and version number
+        version_history = asset.get("version_history", [])
+        current_version_num = asset.get("current_version", 1)
+        
+        # Save current version to history before updating
+        # For the first edit, save the original as version 1
+        if current_version_num == 1 and len(version_history) == 0:
+            original_entry = {
+                "version": 1,
+                "content": asset["content"],
+                "title": asset["title"],
+                "edited_at": asset.get("created_at", datetime.now().isoformat()),
+                "edit_message": "Original version",
+                "edited_by": user_id
+            }
+            version_history.append(original_entry)
+        
+        # Build chat editing prompt
+        prompt = f"""
+        You are an expert editor helping to improve a marketing asset. The user wants you to: {edit_request}
+
+        Current marketing asset content:
+        {current_content}
+
+        Asset Type: {asset.get('asset_type', 'general')}
+        
+        Original POV context for reference:
+        - Vendor: {report_data['report']['vendor_name']}
+        - Customer: {report_data['report']['target_customer_name']}
+        - POV Outcomes: {', '.join(report_data.get('titles', [])[:5])}
+        
+        Instructions:
+        - Make the requested changes while maintaining the professional tone
+        - Keep the format appropriate for the asset type ({asset.get('asset_type', 'general')})
+        - Ensure changes are relevant to the POV context
+        - Return the complete updated marketing asset content
+        - Preserve formatting appropriate for the asset type
+        
+        Updated content:
+        """
+        
+        from llm import call_gpt
+        updated_content, _ = call_gpt(
+            prompt=prompt,
+            system_prompt="You are a professional marketing content editor. Make precise, impactful improvements based on user requests.",
+        )
+        
+        # Keep only last 20 versions to prevent excessive storage
+        if len(version_history) > 20:
+            version_history = version_history[-20:]
+        
+        # Update the asset with new content and version history
+        supabase.table("marketing_assets").update({
+            "content": updated_content,
+            "version_history": version_history,
+            "current_version": current_version_num + 1,
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", asset_id).eq("user_id", user_id).execute()
+        
+        return {
+            "message": "Marketing asset updated successfully",
+            "updated_content": updated_content,
+            "edit_request": edit_request,
+            "version": current_version_num + 1,
+            "version_history": version_history
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/marketing-assets/{asset_id}/versions")
+async def get_marketing_asset_versions(
+    asset_id: str,
+    user_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get version history for a marketing asset
+    """
+    try:
+        result = supabase.table("marketing_assets").select("version_history, current_version, title").eq("id", asset_id).eq("user_id", user_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Marketing asset not found")
+        
+        return {
+            "current_version": result.data.get("current_version", 1),
+            "current_title": result.data.get("title", ""),
+            "versions": result.data.get("version_history", [])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/marketing-assets/{asset_id}/restore/{version_number}")
+async def restore_marketing_asset_version(
+    asset_id: str,
+    version_number: int,
+    request: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Restore a previous version of a marketing asset
+    """
+    try:
+        user_id = request.get("user_id")
+        
+        # Get asset with version history
+        result = supabase.table("marketing_assets").select("*").eq("id", asset_id).eq("user_id", user_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Marketing asset not found")
+        
+        asset = result.data
+        version_history = asset.get("version_history", [])
+        current_version_num = asset.get("current_version", 1)
+        
+        # Find the version to restore
+        version_to_restore = None
+        for version in version_history:
+            if version.get("version") == version_number:
+                version_to_restore = version
+                break
+        
+        if not version_to_restore:
+            raise HTTPException(status_code=404, detail=f"Version {version_number} not found")
+        
+        # Save current version to history before restoring
+        current_entry = {
+            "version": current_version_num,
+            "content": asset["content"],
+            "title": asset["title"],
+            "edited_at": asset.get("updated_at", asset.get("created_at")),
+            "edit_message": f"Before restoring to version {version_number}",
+            "edited_by": user_id
+        }
+        version_history.append(current_entry)
+        
+        # Keep only last 20 versions
+        if len(version_history) > 20:
+            version_history = version_history[-20:]
+        
+        # Restore the selected version
+        supabase.table("marketing_assets").update({
+            "content": version_to_restore["content"],
+            "title": version_to_restore.get("title", asset["title"]),
+            "version_history": version_history,
+            "current_version": current_version_num + 1,
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", asset_id).eq("user_id", user_id).execute()
+        
+        return {
+            "message": f"Successfully restored version {version_number}",
+            "restored_content": version_to_restore["content"],
+            "new_version": current_version_num + 1
+        }
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -3177,6 +3745,223 @@ async def get_sales_scripts(report_id: str, user_id: str, api_key: str = Depends
         return {"items": res.data or []}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat-edit-sales-script/{script_id}")
+async def chat_edit_sales_script(
+    script_id: str,
+    request: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Chat-based sales script editing endpoint with version history
+    """
+    try:
+        user_id = request.get("user_id")
+        edit_request = request.get("message", "")
+        current_content = request.get("current_content", "")
+        
+        if not edit_request.strip():
+            raise HTTPException(status_code=400, detail="Edit request is required")
+        
+        # Get original script data including version history
+        script_result = supabase.table("sales_scripts").select("*").eq("id", script_id).eq("user_id", user_id).single().execute()
+        if not script_result.data:
+            raise HTTPException(status_code=404, detail="Sales script not found")
+        
+        script = script_result.data
+        report_data = await get_pov_report_data(script["report_id"], user_id)
+        
+        # Get current version history and version number
+        version_history = script.get("version_history", [])
+        current_version_num = script.get("current_version", 1)
+        
+        # Save current version to history before updating
+        # For the first edit, save the original as version 1
+        if current_version_num == 1 and len(version_history) == 0:
+            original_entry = {
+                "version": 1,
+                "content": script["script_body"],
+                "title": script["title"],
+                "edited_at": script.get("created_at", datetime.now().isoformat()),
+                "edit_message": "Original version",
+                "edited_by": user_id
+            }
+            version_history.append(original_entry)
+        
+        # Build chat editing prompt
+        prompt = f"""
+        You are an expert editor helping to improve a sales script. The user wants you to: {edit_request}
+
+        Current sales script content:
+        {current_content}
+
+        Script Scenario: {script.get('scenario', 'general')}
+        
+        Original POV context for reference:
+        - Vendor: {report_data['report']['vendor_name']}
+        - Customer: {report_data['report']['target_customer_name']}
+        - POV Outcomes: {', '.join(report_data.get('titles', [])[:5])}
+        
+        Instructions:
+        - Make the requested changes while maintaining conversational and professional tone
+        - Keep the script appropriate for the scenario type ({script.get('scenario', 'general')})
+        - Ensure changes are relevant to the POV context
+        - Return the complete updated sales script content
+        - Preserve dialogue formatting and speaker indicators
+        
+        Updated script:
+        """
+        
+        from llm import call_gpt
+        updated_content, _ = call_gpt(
+            prompt=prompt,
+            system_prompt="You are a professional sales script editor. Make precise, persuasive improvements based on user requests.",
+        )
+        
+        # Keep only last 20 versions to prevent excessive storage
+        if len(version_history) > 20:
+            version_history = version_history[-20:]
+        
+        # Update the script with new content and version history
+        supabase.table("sales_scripts").update({
+            "script_body": updated_content,
+            "version_history": version_history,
+            "current_version": current_version_num + 1,
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", script_id).eq("user_id", user_id).execute()
+        
+        return {
+            "message": "Sales script updated successfully",
+            "updated_content": updated_content,
+            "edit_request": edit_request,
+            "version": current_version_num + 1,
+            "version_history": version_history
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/sales-scripts/{script_id}/versions")
+async def get_sales_script_versions(
+    script_id: str,
+    user_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get version history for a sales script
+    """
+    try:
+        result = supabase.table("sales_scripts").select("version_history, current_version, title").eq("id", script_id).eq("user_id", user_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Sales script not found")
+        
+        return {
+            "current_version": result.data.get("current_version", 1),
+            "current_title": result.data.get("title", ""),
+            "versions": result.data.get("version_history", [])
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/sales-scripts/{script_id}/restore/{version_number}")
+async def restore_sales_script_version(
+    script_id: str,
+    version_number: int,
+    request: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Restore a previous version of a sales script
+    """
+    try:
+        user_id = request.get("user_id")
+        
+        # Get script with version history
+        result = supabase.table("sales_scripts").select("*").eq("id", script_id).eq("user_id", user_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Sales script not found")
+        
+        script = result.data
+        version_history = script.get("version_history", [])
+        current_version_num = script.get("current_version", 1)
+        
+        # Find the version to restore
+        version_to_restore = None
+        for version in version_history:
+            if version.get("version") == version_number:
+                version_to_restore = version
+                break
+        
+        if not version_to_restore:
+            raise HTTPException(status_code=404, detail=f"Version {version_number} not found")
+        
+        # Save current version to history before restoring
+        current_entry = {
+            "version": current_version_num,
+            "content": script["script_body"],
+            "title": script["title"],
+            "edited_at": script.get("updated_at", script.get("created_at")),
+            "edit_message": f"Before restoring to version {version_number}",
+            "edited_by": user_id
+        }
+        version_history.append(current_entry)
+        
+        # Keep only last 20 versions
+        if len(version_history) > 20:
+            version_history = version_history[-20:]
+        
+        # Restore the selected version
+        supabase.table("sales_scripts").update({
+            "script_body": version_to_restore["content"],
+            "title": version_to_restore.get("title", script["title"]),
+            "version_history": version_history,
+            "current_version": current_version_num + 1,
+            "updated_at": datetime.now().isoformat()
+        }).eq("id", script_id).eq("user_id", user_id).execute()
+        
+        return {
+            "message": f"Successfully restored version {version_number}",
+            "restored_content": version_to_restore["content"],
+            "new_version": current_version_num + 1
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/company/{company_name}/financial-data")
+async def get_company_financial_data(
+    company_name: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get financial/stock data for a company
+    """
+    try:
+        from financial_service import get_company_financial_data
+        
+        # Decode the company name from URL encoding
+        import urllib.parse
+        decoded_company_name = urllib.parse.unquote(company_name)
+        
+        # Fetch financial data
+        financial_data = await get_company_financial_data(decoded_company_name)
+        
+        if financial_data:
+            return {
+                "company_name": decoded_company_name,
+                "financial_data": financial_data,
+                "is_public": True
+            }
+        else:
+            return {
+                "company_name": decoded_company_name,
+                "financial_data": None,
+                "is_public": False,
+                "message": "No financial data found - likely a private company or ticker not recognized"
+            }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching financial data: {str(e)}")
 
 @app.get("/health")
 async def health_check():

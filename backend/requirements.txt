@@ -20,3 +20,4 @@ google-genai
 aiohttp
 supabase
 pypandoc
+yfinance>=0.2.28
